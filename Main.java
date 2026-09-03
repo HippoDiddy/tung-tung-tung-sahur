@@ -29,6 +29,7 @@ public class Main extends JFrame {
 class GamePanel extends JPanel {
     private Player player;
     private ArrayList<Tung> fallingTungs;
+    private ArrayList<Enemy> enemies;
     private ArrayList<GameMessage> gameMessages;
     private int score = 0;
     private double multiplier = 1.0;
@@ -37,9 +38,12 @@ class GamePanel extends JPanel {
     private Random random;
     private int tungCount = 0;
     private int missedTungs = 0;
+    private int enemiesDefeated = 0;
     private long gameStartTime = 0;
+    private long elapsedSeconds = 0;
     private KeyListener keyListener;
     private boolean[] keysPressed = new boolean[256];
+    private int difficultyLevel = 1;
 
     public GamePanel() {
         setPreferredSize(new Dimension(900, 700));
@@ -48,6 +52,7 @@ class GamePanel extends JPanel {
 
         player = new Player(400, 600);
         fallingTungs = new ArrayList<>();
+        enemies = new ArrayList<>();
         gameMessages = new ArrayList<>();
         random = new Random();
 
@@ -65,6 +70,8 @@ class GamePanel extends JPanel {
                         startGame();
                     } else if (gamePaused) {
                         gamePaused = false;
+                    } else if (gameRunning) {
+                        player.jump();
                     }
                 }
                 if (code == KeyEvent.VK_P && gameRunning) {
@@ -103,6 +110,23 @@ class GamePanel extends JPanel {
             }
         });
         spawnTimer.start();
+
+        // Spawn Enemies - gets harder over time
+        Timer enemySpawnTimer = new Timer(3000, e -> {
+            if (gameRunning && !gamePaused) {
+                spawnEnemy();
+            }
+        });
+        enemySpawnTimer.start();
+
+        // Difficulty updater
+        Timer difficultyTimer = new Timer(1000, e -> {
+            if (gameRunning && !gamePaused) {
+                elapsedSeconds++;
+                difficultyLevel = 1 + (int)(elapsedSeconds / 10); // Increases every 10 seconds
+            }
+        });
+        difficultyTimer.start();
     }
 
     private void handleInput() {
@@ -122,7 +146,11 @@ class GamePanel extends JPanel {
         multiplier = 1.0;
         tungCount = 0;
         missedTungs = 0;
+        enemiesDefeated = 0;
+        elapsedSeconds = 0;
+        difficultyLevel = 1;
         fallingTungs.clear();
+        enemies.clear();
         gameMessages.clear();
         gameStartTime = System.currentTimeMillis();
         playSound(400, 100);
@@ -137,7 +165,11 @@ class GamePanel extends JPanel {
         multiplier = 1.0;
         tungCount = 0;
         missedTungs = 0;
+        enemiesDefeated = 0;
+        elapsedSeconds = 0;
+        difficultyLevel = 1;
         fallingTungs.clear();
+        enemies.clear();
         gameMessages.clear();
         player.reset();
     }
@@ -147,14 +179,36 @@ class GamePanel extends JPanel {
         fallingTungs.add(new Tung(x, -50));
     }
 
+    private void spawnEnemy() {
+        int x = random.nextInt(800);
+        
+        // Spawn chance increases with difficulty
+        int spawnChance = Math.min(80, 20 + (difficultyLevel * 10));
+        int roll = random.nextInt(100);
+        
+        if (roll < spawnChance) {
+            // Decide which enemy type
+            int enemyType = random.nextInt(2); // 0 = Ohio Sigma, 1 = Skibidi Rizzler
+            
+            if (enemyType == 0) {
+                enemies.add(new OhioSigma(x, -50, difficultyLevel));
+            } else {
+                enemies.add(new SkibidiRizzler(x, -50, difficultyLevel));
+            }
+        }
+    }
+
     private void update() {
+        // Update Player
+        player.update();
+
         // Update Tungs
         for (int i = 0; i < fallingTungs.size(); i++) {
             Tung tung = fallingTungs.get(i);
             tung.update();
 
             // Collision mit Player
-            if (tung.y > 550 && tung.y < 630 &&
+            if (tung.y > player.y - 10 && tung.y < player.y + 50 &&
                 tung.x > player.x - 30 && tung.x < player.x + 80) {
                 
                 int points = (int) (10 * multiplier);
@@ -178,6 +232,48 @@ class GamePanel extends JPanel {
                 playSound(200, 100);
                 
                 fallingTungs.remove(i);
+                i--;
+            }
+        }
+
+        // Update Enemies
+        for (int i = 0; i < enemies.size(); i++) {
+            Enemy enemy = enemies.get(i);
+            enemy.update();
+
+            // Collision mit Player
+            if (enemy.y > player.y - 20 && enemy.y < player.y + 50 &&
+                enemy.x > player.x - 40 && enemy.x < player.x + 80) {
+                
+                // If jumping, defeat enemy
+                if (player.isJumping && player.velocityY < 0) {
+                    int points = (int) (50 * multiplier);
+                    score += points;
+                    multiplier += 0.5;
+                    enemiesDefeated++;
+                    
+                    String enemyName = enemy instanceof OhioSigma ? "OHIO SIGMA" : "SKIBIDI RIZZLER";
+                    addGameMessage(enemyName + " DEFEATED! +" + points, new Color(255, 100, 255));
+                    playSound(1200, 50);
+                    playSound(800, 50);
+                    
+                    enemies.remove(i);
+                    i--;
+                } else {
+                    // Hit by enemy - lose multiplier
+                    multiplier = Math.max(1.0, multiplier - 0.3);
+                    addGameMessage("HIT! Multiplier down", new Color(255, 0, 0));
+                    playSound(200, 100);
+                    playSound(150, 100);
+                }
+            }
+            // Enemy missed
+            else if (enemy.y > 700) {
+                multiplier = Math.max(1.0, multiplier - 0.15);
+                addGameMessage("ENEMY ESCAPED!", new Color(255, 100, 0));
+                playSound(200, 100);
+                
+                enemies.remove(i);
                 i--;
             }
         }
@@ -248,7 +344,7 @@ class GamePanel extends JPanel {
         // Subtitle
         g2d.setFont(new Font("Arial", Font.PLAIN, 20));
         g2d.setColor(new Color(0, 255, 255));
-        String subtitle = "CATCH THE TUNGS! (no cap fr fr 💀)";
+        String subtitle = "CATCH TUNGS & DEFEAT ENEMIES! (no cap fr fr 💀)";
         g2d.drawString(subtitle, (getWidth() - fm.stringWidth(subtitle)) / 2, 130);
 
         // Game Area Background
@@ -264,6 +360,11 @@ class GamePanel extends JPanel {
                 tung.draw(g2d);
             }
 
+            // Draw Enemies
+            for (Enemy enemy : enemies) {
+                enemy.draw(g2d);
+            }
+
             // Draw Player (Sahur character)
             player.draw(g2d);
 
@@ -276,24 +377,29 @@ class GamePanel extends JPanel {
             g2d.setFont(new Font("Arial", Font.BOLD, 28));
             g2d.setColor(new Color(255, 255, 0));
             g2d.drawString("SCORE: " + score, 80, 680);
-            g2d.drawString("COMBO: " + String.format("%.1f", multiplier) + "x", 400, 680);
-            g2d.drawString("CAUGHT: " + tungCount, 750, 680);
+            g2d.drawString("COMBO: " + String.format("%.1f", multiplier) + "x", 350, 680);
+            g2d.drawString("DIFFICULTY: " + difficultyLevel, 650, 680);
 
-            // Missed counter
+            // Additional stats
+            g2d.setFont(new Font("Arial", Font.BOLD, 20));
+            g2d.setColor(new Color(100, 255, 100));
+            g2d.drawString("CAUGHT: " + tungCount, 80, 720);
             g2d.setColor(new Color(255, 100, 100));
-            g2d.drawString("MISSED: " + missedTungs, 80, 720);
+            g2d.drawString("ENEMIES: " + enemiesDefeated, 350, 720);
+            g2d.setColor(new Color(255, 100, 100));
+            g2d.drawString("MISSED: " + missedTungs, 600, 720);
 
             // Controls Help
-            g2d.setFont(new Font("Arial", Font.PLAIN, 14));
+            g2d.setFont(new Font("Arial", Font.PLAIN, 12));
             g2d.setColor(new Color(0, 255, 255));
-            g2d.drawString("⬅️ A/LEFT | ➡️ D/RIGHT | P = PAUSE | R = RESET", 200, 720);
+            g2d.drawString("A/LEFT | D/RIGHT | SPACEBAR JUMP | P PAUSE | R RESET", 220, 720);
 
         } else {
             // Start Screen
             g2d.setFont(new Font("Arial", Font.BOLD, 40));
             g2d.setColor(new Color(255, 0, 255));
             String startText = "PRESS SPACEBAR TO START";
-            g2d.drawString(startText, (getWidth() - fm.stringWidth(startText)) / 2, 350);
+            g2d.drawString(startText, (getWidth() - fm.stringWidth(startText)) / 2, 280);
 
             // Instructions
             g2d.setFont(new Font("Arial", Font.PLAIN, 18));
@@ -301,18 +407,20 @@ class GamePanel extends JPanel {
             
             String[] instructions = {
                 "HOW TO PLAY:",
-                "• Move your SAHUR (green character) left & right",
+                "• Move your SAHUR (green character) left & right with A/D",
+                "• JUMP with SPACEBAR to defeat enemies!",
                 "• CATCH the falling TUNG TUNG TUNGS (pink squares)",
+                "• DEFEAT enemies: OHIO SIGMA 🔵 & SKIBIDI RIZZLER 🚽",
                 "• Each caught tung = +10 points × multiplier",
-                "• Multiplier increases as you catch more!",
-                "• Miss too many and multiplier goes DOWN",
-                "• BECOME THE ULTIMATE TUNG MASTER! 🚀"
+                "• Each defeated enemy = +50 points × multiplier",
+                "• Difficulty increases over time - enemies spawn more often!",
+                "• BECOME THE ULTIMATE SIGMA MASTER! 🚀"
             };
 
-            int y = 420;
+            int y = 350;
             for (String instruction : instructions) {
-                g2d.drawString(instruction, 150, y);
-                y += 35;
+                g2d.drawString(instruction, 100, y);
+                y += 30;
             }
 
             // Brainrot Messages
@@ -323,7 +431,7 @@ class GamePanel extends JPanel {
                 "🌟 it's giving retro energy ✨",
                 "💀 no shot you're still reading this",
                 "🚽 skibidi fr fr",
-                "📱 it's giving mobile game vibes"
+                "📱 it's giving epic gamer vibes"
             };
             int msgIndex = (int) (System.currentTimeMillis() / 3000) % messages.length;
             g2d.drawString(messages[msgIndex], (getWidth() - fm.stringWidth(messages[msgIndex])) / 2, 690);
@@ -349,7 +457,6 @@ class GamePanel extends JPanel {
     private void playSound(int frequency, int duration) {
         new Thread(() -> {
             try {
-                // System beep
                 System.out.print('\u0007');
             } catch (Exception e) {
                 // Sound not available
@@ -360,9 +467,14 @@ class GamePanel extends JPanel {
 
 class Player {
     public int x, y;
+    public int velocityY = 0;
+    public boolean isJumping = false;
     private static final int WIDTH = 60;
     private static final int HEIGHT = 50;
     private static final int SPEED = 8;
+    private static final int JUMP_POWER = 15;
+    private static final int GROUND_Y = 600;
+    private static final int GRAVITY = 1;
     private int startX;
     private int startY;
 
@@ -376,6 +488,8 @@ class Player {
     public void reset() {
         this.x = startX;
         this.y = startY;
+        this.velocityY = 0;
+        this.isJumping = false;
     }
 
     public void moveLeft() {
@@ -387,6 +501,32 @@ class Player {
     public void moveRight() {
         if (x < 790) {
             x += SPEED;
+        }
+    }
+
+    public void jump() {
+        if (!isJumping && y >= GROUND_Y - 5) {
+            velocityY = -JUMP_POWER;
+            isJumping = true;
+        }
+    }
+
+    public void update() {
+        // Apply gravity
+        velocityY += GRAVITY;
+        y += velocityY;
+
+        // Ground collision
+        if (y >= GROUND_Y) {
+            y = GROUND_Y;
+            velocityY = 0;
+            isJumping = false;
+        }
+
+        // Ceiling collision
+        if (y < 160) {
+            y = 160;
+            velocityY = 0;
         }
     }
 
@@ -411,10 +551,14 @@ class Player {
         g.fillOval(x + 20, y + 5, 5, 5);
         g.fillOval(x + 35, y + 5, 5, 5);
 
-        // Mouth (happy)
+        // Mouth (happy/surprised based on jump)
         g.setColor(new Color(255, 0, 255));
         g.setStroke(new BasicStroke(2));
-        g.drawArc(x + 20, y + 8, 20, 8, 0, 180);
+        if (isJumping) {
+            g.drawOval(x + 27, y + 10, 6, 6); // Surprised face
+        } else {
+            g.drawArc(x + 20, y + 8, 20, 8, 0, 180); // Happy face
+        }
 
         // Arms (reaching out to catch)
         g.setColor(new Color(0, 255, 0));
@@ -431,6 +575,120 @@ class Player {
         g.setFont(new Font("Arial", Font.BOLD, 12));
         g.setColor(new Color(0, 255, 255));
         g.drawString("SAHUR", x + 10, y + 65);
+    }
+}
+
+// Abstract Enemy class
+abstract class Enemy {
+    public int x, y;
+    public int velocityY;
+    protected static final int GRAVITY = 1;
+    protected int speed;
+    protected int difficulty;
+
+    public Enemy(int x, int y, int difficulty) {
+        this.x = x;
+        this.y = y;
+        this.velocityY = 0;
+        this.difficulty = difficulty;
+        this.speed = 2 + difficulty;
+    }
+
+    public void update() {
+        velocityY += GRAVITY;
+        y += velocityY;
+    }
+
+    abstract void draw(Graphics2D g);
+}
+
+// Ohio Sigma Enemy
+class OhioSigma extends Enemy {
+    private Color color;
+    private static final int SIZE = 30;
+
+    public OhioSigma(int x, int y, int difficulty) {
+        super(x, y, difficulty);
+        this.color = new Color(100, 150, 255); // Blue
+    }
+
+    public void update() {
+        super.update();
+        x += (random.nextInt(3) - 1); // Random horizontal movement
+    }
+
+    @Override
+    void draw(Graphics2D g) {
+        // Head (blue circle)
+        g.setColor(color);
+        g.fillOval(x, y, SIZE, SIZE);
+        
+        g.setColor(new Color(0, 255, 0));
+        g.setStroke(new BasicStroke(2));
+        g.drawOval(x, y, SIZE, SIZE);
+
+        // Eyes (angry)
+        g.setColor(Color.BLACK);
+        g.fillOval(x + 8, y + 8, 5, 5);
+        g.fillOval(x + 17, y + 8, 5, 5);
+
+        // Mouth (angry)
+        g.setColor(Color.BLACK);
+        g.setStroke(new BasicStroke(2));
+        g.drawLine(x + 8, y + 20, x + 22, y + 20);
+
+        // Label
+        g.setFont(new Font("Arial", Font.BOLD, 11));
+        g.setColor(new Color(100, 255, 255));
+        g.drawString("OHIO", x + 3, y + 45);
+    }
+
+    private Random random = new Random();
+}
+
+// Skibidi Rizzler Enemy
+class SkibidiRizzler extends Enemy {
+    private Color color;
+    private static final int SIZE = 28;
+    private int wobbleCounter = 0;
+
+    public SkibidiRizzler(int x, int y, int difficulty) {
+        super(x, y, difficulty);
+        this.color = new Color(255, 100, 150); // Pink/Red
+    }
+
+    public void update() {
+        super.update();
+        wobbleCounter++;
+        x += Math.sin(wobbleCounter * 0.1) * 2; // Wobble movement
+    }
+
+    @Override
+    void draw(Graphics2D g) {
+        // Head (pink circle)
+        g.setColor(color);
+        g.fillOval(x, y, SIZE, SIZE);
+        
+        g.setColor(new Color(255, 255, 0));
+        g.setStroke(new BasicStroke(2));
+        g.drawOval(x, y, SIZE, SIZE);
+
+        // Eyes (cool)
+        g.setColor(Color.BLACK);
+        g.fillOval(x + 6, y + 7, 6, 6);
+        g.fillOval(x + 16, y + 7, 6, 6);
+        g.fillOval(x + 8, y + 8, 3, 3); // Shine
+        g.fillOval(x + 18, y + 8, 3, 3); // Shine
+
+        // Mouth (cool grin)
+        g.setColor(Color.BLACK);
+        g.setStroke(new BasicStroke(2));
+        g.drawArc(x + 5, y + 15, 18, 10, 0, 180);
+
+        // Label
+        g.setFont(new Font("Arial", Font.BOLD, 10));
+        g.setColor(new Color(255, 200, 100));
+        g.drawString("SKIBIDI", x - 3, y + 44);
     }
 }
 
