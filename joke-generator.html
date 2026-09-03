@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BRAINROT JOKE GENERATOR</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #4facfe);
+            background-size: 400% 400%;
+            animation: gradientShift 4s ease infinite;
+            font-family: 'Comic Sans MS', cursive, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 60px 40px;
+            border-radius: 30px;
+            border: 5px solid #00ff00;
+            box-shadow: 0 0 40px #00ff00, inset 0 0 20px rgba(0,255,0,0.2);
+            max-width: 600px;
+            width: 90%;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            animation: flicker 0.3s infinite;
+            letter-spacing: 2px;
+            color: #ffff00;
+            text-shadow: 0 0 10px #ff00ff;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #00ffff;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .joke-box {
+            background: rgba(255, 0, 255, 0.2);
+            border: 3px dashed #ffff00;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 15px;
+            min-height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            line-height: 1.6;
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        .joke-text {
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loading {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            color: #000;
+            border: 3px solid #ffff00;
+            padding: 15px 40px;
+            font-size: 1.2em;
+            cursor: pointer;
+            margin: 10px;
+            font-weight: bold;
+            border-radius: 15px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            font-family: 'Comic Sans MS', cursive;
+            letter-spacing: 1px;
+        }
+
+        button:hover {
+            background: linear-gradient(45deg, #00ffff, #ff00ff);
+            box-shadow: 0 0 30px #ffff00;
+            transform: scale(1.1);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .joke-counter {
+            margin-top: 20px;
+            font-size: 1.1em;
+            color: #ffff00;
+        }
+
+        .category-buttons {
+            margin: 20px 0;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .category-btn {
+            background: #00ff00;
+            color: #000;
+            border: 2px solid #fff;
+            padding: 10px 20px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border-radius: 10px;
+            font-weight: bold;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            font-family: 'Comic Sans MS', cursive;
+        }
+
+        .category-btn:hover {
+            background: #ffff00;
+            box-shadow: 0 0 15px #ffff00;
+        }
+
+        .category-btn.active {
+            background: #ff00ff;
+            box-shadow: 0 0 20px #ff00ff;
+        }
+
+        .brainrot-text {
+            margin-top: 30px;
+            font-size: 0.95em;
+            color: #ffff00;
+            font-style: italic;
+            animation: blink 0.8s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.3);
+            border: 2px solid #ff0000;
+            color: #ff6666;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>😂 JOKE GENERATOR 😂</h1>
+        <div class="subtitle">no cap this will make u laugh (or cry 💀)</div>
+
+        <div class="category-buttons">
+            <button class="category-btn active" onclick="selectCategory(null)">ANY</button>
+            <button class="category-btn" onclick="selectCategory('general')">GENERAL</button>
+            <button class="category-btn" onclick="selectCategory('programming')">PROGRAMMING</button>
+            <button class="category-btn" onclick="selectCategory('knock-knock')">KNOCK KNOCK</button>
+        </div>
+
+        <div class="joke-box" id="jokeBox">
+            <span class="loading">⏳</span> waiting for the tea...
+        </div>
+
+        <button id="fetchBtn" onclick="fetchJoke()">GET JOKE (NO CAP)</button>
+        <button onclick="shareJoke()">SHARE THIS JOKE 📱</button>
+
+        <div class="joke-counter">
+            JOKES LOADED: <span id="jokeCount">0</span>
+        </div>
+
+        <div id="errorBox"></div>
+
+        <div class="brainrot-text">
+            "it's giving comedy" ✨ | "ratio'd by humor" 💀 | "based and joke-pilled" 🗣️
+        </div>
+    </div>
+
+    <script>
+        let jokeCount = 0;
+        let currentJoke = '';
+        let selectedCategory = null;
+
+        const API_URL = 'https://v2.jokeapi.dev/joke/';
+
+        async function fetchJoke() {
+            const fetchBtn = document.getElementById('fetchBtn');
+            const jokeBox = document.getElementById('jokeBox');
+            const errorBox = document.getElementById('errorBox');
+
+            fetchBtn.disabled = true;
+            jokeBox.innerHTML = '<span class="loading">⏳</span> loading the tea...';
+            errorBox.innerHTML = '';
+
+            try {
+                const category = selectedCategory || 'Any';
+                const url = `${API_URL}${category}?format=json`;
+
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.error) {
+                    throw new Error('No jokes available for this category');
+                }
+
+                // Format the joke
+                if (data.type === 'twopart') {
+                    currentJoke = `${data.setup} ... ${data.delivery}`;
+                } else {
+                    currentJoke = data.joke;
+                }
+
+                jokeBox.innerHTML = `<div class="joke-text">${currentJoke}</div>`;
+                jokeCount++;
+                document.getElementById('jokeCount').textContent = jokeCount;
+
+                // Play sound effect
+                playJokeSound();
+
+            } catch (error) {
+                errorBox.innerHTML = `<div class="error">❌ ${error.message}</div>`;
+                jokeBox.innerHTML = '😅 oops something went wrong... try again?';
+            } finally {
+                fetchBtn.disabled = false;
+            }
+        }
+
+        function selectCategory(category) {
+            selectedCategory = category;
+            
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            event.target.classList.add('active');
+        }
+
+        function shareJoke() {
+            if (!currentJoke) {
+                alert('no joke to share yet bro 💀');
+                return;
+            }
+
+            const text = `hahaha check this out: "${currentJoke}" - generated by the BRAINROT JOKE GENERATOR 🎮`;
+            
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Check out this joke!',
+                    text: text
+                }).catch(err => console.log('Error sharing:', err));
+            } else {
+                // Fallback: copy to clipboard
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('joke copied to clipboard!! go flex it 💪');
+                });
+            }
+        }
+
+        function playJokeSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const notes = [523.25, 659.25, 783.99]; // C5, E5, G5
+                
+                notes.forEach((freq, index) => {
+                    const time = audioContext.currentTime + (index * 0.1);
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.3, time);
+                    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
+                    
+                    osc.start(time);
+                    osc.stop(time + 0.2);
+                });
+            } catch (e) {}
+        }
+
+        // Load a joke on page load
+        window.addEventListener('load', () => {
+            fetchJoke();
+        });
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                fetchJoke();
+            }
+        });
+    </script>
+</body>
+</html>
