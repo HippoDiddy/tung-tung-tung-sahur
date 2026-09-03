@@ -29,7 +29,7 @@ public class Main extends JFrame {
 class GamePanel extends JPanel {
     private Player player;
     private ArrayList<Tung> fallingTungs;
-    private ArrayList<String> gameMessages;
+    private ArrayList<GameMessage> gameMessages;
     private int score = 0;
     private double multiplier = 1.0;
     private boolean gameRunning = false;
@@ -183,9 +183,12 @@ class GamePanel extends JPanel {
         }
 
         // Remove old messages
-        gameMessages.removeIf(msg -> msg.age > 120);
-        for (GameMessage msg : gameMessages) {
+        for (int i = gameMessages.size() - 1; i >= 0; i--) {
+            GameMessage msg = gameMessages.get(i);
             msg.age++;
+            if (msg.age > 120) {
+                gameMessages.remove(i);
+            }
         }
     }
 
